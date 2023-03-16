@@ -17,8 +17,11 @@ tr_list = soup.find_all("tr")
 
 # Get list of Pokemon as object:
 pkmn_list = []
+id = 0
 for tr in tr_list:
     pkmn = types.SimpleNamespace()
+    pkmn.id = id
+
     name_e = tr.find('a', {'class':'ent-name'})
     if name_e:
         form_e = tr.find('small', {'class': 'text-muted'})
@@ -47,6 +50,7 @@ for tr in tr_list:
         pkmn.SPE = stats_e[5].text
     
     pkmn_list.append(pkmn)
+    id += 1
 
 # For some reason, the list has an empty first element; remove it
 pkmn_list.pop(0)
@@ -64,22 +68,22 @@ f.write("""
 drop table Pokemon;
 
 CREATE TABLE Pokemon (
+    id SMALLINT,
     pokemonName char(40),
-    lvl number,
     primaryType char(8) NOT NULL,
     secondaryType char(8),
-    hp number NOT NULL,
-    atk number NOT NULL,
-    def number NOT NULL,
-    spa number NOT NULL,
-    spdef number NOT NULL,
-    spe number NOT NULL,
-    PRIMARY KEY (pokemonName)
+    hp SMALLINT NOT NULL,
+    atk SMALLINT NOT NULL,
+    def SMALLINT NOT NULL,
+    spa SMALLINT NOT NULL,
+    spdef SMALLINT NOT NULL,
+    spe SMALLINT NOT NULL,
+    PRIMARY KEY (id)
 );"""
 )
 for pkmn in pkmn_list:
     f.write(f"""
     INSERT INTO Pokemon
-        VALUES ('{pkmn.NAME.replace("'", "''")}', NULL, '{pkmn.TYPE1}', '{pkmn.TYPE2}', {pkmn.HP}, {pkmn.ATK}, {pkmn.DEF}, {pkmn.SPA}, {pkmn.SPDEF}, {pkmn.SPE});
+        VALUES ({pkmn.id}, '{pkmn.NAME.replace("'", "''")}', '{pkmn.TYPE1}', '{pkmn.TYPE2}', {pkmn.HP}, {pkmn.ATK}, {pkmn.DEF}, {pkmn.SPA}, {pkmn.SPDEF}, {pkmn.SPE});
     """)
 f.close()
