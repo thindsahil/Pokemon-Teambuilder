@@ -7,18 +7,21 @@
     </body>
     
     <?php
-        $conn = NULL;
+        require_once('class.php');
 
+        $conn = NULL;
         connect();
-        // do a test query
-        execute_query($conn, "SELECT * FROM Pokemon WHERE primaryType='Fire'");
+        $ft_args = array("Fire");
+        $fs_args = array(new FStat("ATK", 81, "="), new FStat("DEF", 40, ">"));
+        $ns = new NameSearch("Ta", $ft_args, $fs_args, NULL, NULL);
+        echo $ns->get_query();
+        execute_query($conn, $ns->get_query()); 
 
         function debug($message) {
             echo "<script type='text/javascript'>alert('" . $message . "');</script>";
-        }
+        }   
 
         function debug_result($stid) {
-            debug("Before loop.");
             while (($row = oci_fetch_assoc($stid)) != false) {
                 echo "<br>", $row['POKEMONNAME'], "<br />";
             }
