@@ -11,11 +11,15 @@
 
         $conn = NULL;
         connect();
-        $ft_args = array("Fire");
-        $fs_args = array(new FStat("ATK", 81, "="), new FStat("DEF", 40, ">"));
-        $ns = new NameSearch("Ta", $ft_args, $fs_args, NULL, NULL);
-        echo $ns->get_query();
-        execute_query($conn, $ns->get_query()); 
+        // These arguments are in order.
+        $f_name_args;
+        $f_types_args = array("Fire");
+        $f_stat_args = array(new FStat("ATK", 81, "<"), new FStat("DEF", 40, ">"));
+        $f_moves_args = array("Bite");
+        $f_abilities_args;
+        $ns = new NameSearch($f_name_args, $f_types_args, $f_stat_args, $f_moves_args, $f_abilities_args);
+        echo $ns->get_query() . "<br>";
+        execute_query($conn, "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe FROM POKEMON WHERE (PRIMARYTYPE='Fire' or SECONDARYTYPE='Fire')");
 
         function debug($message) {
             echo "<script type='text/javascript'>alert('" . $message . "');</script>";
@@ -23,7 +27,12 @@
 
         function debug_result($stid) {
             while (($row = oci_fetch_assoc($stid)) != false) {
-                echo "<br>", $row['POKEMONNAME'], "<br />";
+                echo "<br>";
+                foreach($row as $x => $x_value) {
+                    echo $x . ":" . $x_value;
+                    echo "<br>";
+                }
+                echo "<br>";
             }
         }
 

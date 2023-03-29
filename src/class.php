@@ -38,17 +38,18 @@
         }
     }
 
-    // Represents the filters applied on a search by the user.
+    // Represents the filters applied on a search by the user. Make sure when you create this object that you follow the requirements commented down below for each attribute. There's
+    // no correctness checking currently so incorrect data will beget incorrect results.
     class NameSearch {
-        // User inputted name.
+        // User inputted name; stored as a string.
         public $f_name;
-        // User chosen types to filter by; stored as {type1, type2}. For each, capitalize the first letter, lowercase the rest.
+        // User chosen types to filter by; stored as an array, (MAX TWO LONG), of strings. 
         public $f_types;
-        // User chosen stat(s) to filter by; stored as an array. See FStat. 
+        // User chosen stat(s) to filter by; stored as an array of FStats. 
         public $f_stat;
-        // User chosen move(s) to filter by; stored as an array.
+        // User chosen move(s) to filter by; stored as an array of strings.
         public $f_moves;
-        // User chosen abilitie(s) to filter by; stored as an array.
+        // User chosen abilitie(s) to filter by; stored as an array of strings.
         public $f_abilities;
 
         function __construct($f_name, $f_types, $f_stat, $f_moves, $f_abilities) {
@@ -79,21 +80,21 @@
             // A list of tables used. 'POKEMON' is always used.
             $tables = array("POKEMON");
             // A list of the where clauses.
-            $clauses = array();
+            $where_clauses = array();
             // A list of all the binds.
             $binds;
 
             if ($this->f_name) {
-                array_push($clauses, "POKEMONNAME LIKE '" . $this->f_name . "%'");
+                array_push($where_clauses, "POKEMONNAME LIKE '" . $this->f_name . "%'");
             }
 
             if ($this->f_types) {
                 $literals = array();
                 for ($i = 0; $i < count($this->f_types); $i++) {
-                    $new_literal = "(PRIMARYTYPE='" . $this->f_types[$i] . "' or " . "SECONDARYTYPE='" . $this->f_types[$i] . "')";
+                    $new_literal = "(PRIMARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "' or " . "SECONDARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "')";
                     array_push($literals, $new_literal);
                 } 
-                array_push($clauses, $this->concat_symbol($literals, "and"));
+                array_push($where_clauses, $this->concat_symbol($literals, "and"));
             }
 
             if ($this->f_stat) {
@@ -103,26 +104,32 @@
                     $new_literal = $curr->get_name() . $curr->get_operator() . $curr->get_number();
                     array_push($literals, $new_literal);
                 }  
-                array_push($clauses, $this->concat_symbol($literals, "and"));
+                array_push($where_clauses, $this->concat_symbol($literals, "and"));  
             }
 
             if ($this->f_moves) {
                 $literals = array();
-                // First, we'll have to join KNOWS so add that here.
-                array_push($tables, "KNOWS");
-                // array_push($tables, );
+                // First, we'll have to join KNOWS and MOVES. Using Sahil's credentials because KNOWS doesn't fit otherwise, LMAO.
+                array_push($tables, "ORA_JUPITER.KNOWS");
+                array_push($tables, "MOVES");
                 // Also, we have to make sure the PKs match.
-                array_push($clauses, "ID=POKEMONID");
+                array_push($where_clauses, "POKEMON.ID=ORA_JUPITER.KNOWS.POKEMONID");
+                array_push($where_clauses, "MOVES.ID=ORA_JUPITER.KNOWS.MOVEID");
                 for ($i = 0; $i < count($this->f_moves); $i++) {
                     $curr = $this->f_moves[$i];
-                    array_push($literals, $this->f_moves[$i]);
-                }  
+                    array_push($literals, "MOVENAME='" . ucfirst(strtolower($this->f_moves[$i])) . "'");
+                }
+                array_push($where_clauses, $this->concat_symbol($literals, "and"));  
             }
 
-            $ret = "SELECT * FROM "
+            if ($this->f_abilities) {
+                // TODO
+            }
+
+            $ret = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe FROM "
             . $this->concat_symbol($tables, ",")
             . " WHERE "
-            . $this->concat_symbol($clauses, "and");
+            . $this->concat_symbol($where_clauses, "and");
             
             return $ret;
         }
