@@ -1,3 +1,10 @@
+drop table Items;
+
+CREATE TABLE Items(
+     itemName char(20),
+     itemType char(16),
+     primary key (itemName, itemType)
+);
 
 INSERT INTO Items VALUES ('', 'Other');
 INSERT INTO Items VALUES ('Repel', 'Other');

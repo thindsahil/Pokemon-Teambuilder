@@ -11,15 +11,17 @@
 
         $conn = NULL;
         connect();
+
         // These arguments are in order.
-        $f_name_args;
-        $f_types_args = array("Fire");
-        $f_stat_args = array(new FStat("ATK", 81, "<"), new FStat("DEF", 40, ">"));
-        $f_moves_args = array("Bite");
+        $f_name_args = NULL;
+        $f_types_args = NULL;//array("Poison"); 
+        $f_stat_args = array(new FStat("HP", 65, ">="));
+        $f_moves_args = NULL;//array("Fire Blast", "Sludge Bomb");
         $f_abilities_args;
-        $ns = new NameSearch($f_name_args, $f_types_args, $f_stat_args, $f_moves_args, $f_abilities_args);
+        $f_order_by = "POKEMONNAME";
+        $ns = new NameSearch($f_name_args, $f_types_args, $f_stat_args, $f_moves_args, $f_abilities_args, $f_order_by);
         echo $ns->get_query() . "<br>";
-        execute_query($conn, "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe FROM POKEMON WHERE (PRIMARYTYPE='Fire' or SECONDARYTYPE='Fire')");
+        execute_query($conn, $ns->get_query());
 
         function debug($message) {
             echo "<script type='text/javascript'>alert('" . $message . "');</script>";

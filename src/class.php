@@ -1,4 +1,20 @@
 <?php
+
+    // Returns a string of "thing1 char thing2 char thing3..." etc.
+    function concat_symbol($things, $char) {
+        $ret;
+        $num = count($things) - 1;
+        $ands = array();
+        for ($i = 0; $i < $num; $i++) {
+            array_push($ands, $char);
+        }
+
+        for ($i = 0; $i < count($things); $i++) {
+            $ret = $ret . $things[$i] . " " . array_pop($ands) . " ";
+        }
+        return $ret;
+    }
+    
     class FStat{
         // Name of the stat to filter, must be one of "HP","ATK","DEF","SPA","SPDEF","SPE", case sensitive!
         public $name;
@@ -38,8 +54,8 @@
         }
     }
 
-    // Represents the filters applied on a search by the user. Make sure when you create this object that you follow the requirements commented down below for each attribute. There's
-    // no correctness checking currently so incorrect data will beget incorrect results.
+    // Represents the filters applied on a Pokemon search by the user. Make sure when you create this object that you follow the requirements commented down below for each attribute. There's
+    // no correctness checking currently (todo?) so incorrect data will beget incorrect results.
     class NameSearch {
         // User inputted name; stored as a string.
         public $f_name;
@@ -51,28 +67,79 @@
         public $f_moves;
         // User chosen abilitie(s) to filter by; stored as an array of strings.
         public $f_abilities;
+        // User chosen attribute to sort by. Either "POKEMONNAME" for alphabetical ordering, or a single FStat (with every field but the name ignored).
+        public $f_order_by;
 
-        function __construct($f_name, $f_types, $f_stat, $f_moves, $f_abilities) {
+        function __construct($f_name, $f_types, $f_stat, $f_moves, $f_abilities, $f_order_by) {
             $this->f_name = ucfirst(strtolower($f_name));
             $this->f_types = $f_types;
             $this->f_stat = $f_stat;
             $this->f_moves = $f_moves;
             $this->f_abilities = $f_abilities;
+            $this->f_order_by = $f_order_by;
         }
 
-        // Returns a string of "thing1 char thing2 char thing3..." etc.
-        function concat_symbol($things, $char) {
-            $ret;
-            $num = count($things) - 1;
-            $ands = array();
-            for ($i = 0; $i < $num; $i++) {
-                array_push($ands, $char);
+        function handle_name(&$where_clauses) {
+            if ($this->f_name) {
+                array_push($where_clauses, "POKEMONNAME LIKE '" . $this->f_name . "%'");
             }
+        }
 
-            for ($i = 0; $i < count($things); $i++) {
-                $ret = $ret . $things[$i] . " " . array_pop($ands) . " ";
+        function handle_types(&$where_clauses) {
+            if ($this->f_types) {
+                $literals = array();
+
+                for ($i = 0; $i < count($this->f_types); $i++) {
+                    $new_literal = "(PRIMARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "' or " . "SECONDARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "')";
+                    array_push($literals, $new_literal);
+                } 
+                array_push($where_clauses, concat_symbol($literals, "and"));
             }
-            return $ret;
+        }
+
+        function handle_stat(&$where_clauses) {
+            if ($this->f_stat) {
+                $literals = array();
+
+                for ($i = 0; $i < count($this->f_stat); $i++) {
+                    $curr = $this->f_stat[$i];
+                    $new_literal = $curr->get_name() . $curr->get_operator() . $curr->get_number();
+                    array_push($literals, $new_literal);
+                }  
+                array_push($where_clauses, concat_symbol($literals, "and"));  
+            }
+        }
+
+        function handle_moves(&$where_clauses) {
+            if ($this->f_moves) {
+                $literals = array();
+
+                for ($i = 0; $i < count($this->f_moves); $i++) {
+                    array_push($literals, "MOVENAME='" . $this->f_moves[$i] . "'");
+                }
+                
+                $subquery = "NOT EXISTS ("
+                . "(SELECT ID FROM MOVES WHERE " . concat_symbol($literals, "or") . ")"
+                . " MINUS "
+                . "(SELECT moveID FROM KNOWS WHERE POKEMON.id=KNOWS.pokemonID)"
+                . ")";
+                array_push($where_clauses, $subquery);
+            }
+        }
+
+        function handle_abilities(&$where_clauses) {
+            // TODO
+        }
+
+        function handle_order_by(&$order_by_clause) {
+            if ($this->f_order_by) {
+                // No error handling here, if you give it something that isn't "pokemonName", it'll assume it's an FStat.
+                if ($this->f_order_by == "POKEMONNAME") {
+                    $order_by_clause = "ORDER BY POKEMONNAME ASC";
+                } else {
+                    $order_by_clause = "ORDER BY " . $this->f_order_by->get_name() . " DESC";
+                }
+            }
         }
 
         // Returns the bounded SQL query represented by this NameFilter as well as the bounded parameters.
@@ -81,55 +148,56 @@
             $tables = array("POKEMON");
             // A list of the where clauses.
             $where_clauses = array();
+            // The order by clause.
+            $order_by_clause;
             // A list of all the binds.
             $binds;
 
-            if ($this->f_name) {
-                array_push($where_clauses, "POKEMONNAME LIKE '" . $this->f_name . "%'");
-            }
-
-            if ($this->f_types) {
-                $literals = array();
-                for ($i = 0; $i < count($this->f_types); $i++) {
-                    $new_literal = "(PRIMARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "' or " . "SECONDARYTYPE='" . ucfirst(strtolower($this->f_types[$i])) . "')";
-                    array_push($literals, $new_literal);
-                } 
-                array_push($where_clauses, $this->concat_symbol($literals, "and"));
-            }
-
-            if ($this->f_stat) {
-                $literals = array();
-                for ($i = 0; $i < count($this->f_stat); $i++) {
-                    $curr = $this->f_stat[$i];
-                    $new_literal = $curr->get_name() . $curr->get_operator() . $curr->get_number();
-                    array_push($literals, $new_literal);
-                }  
-                array_push($where_clauses, $this->concat_symbol($literals, "and"));  
-            }
-
-            if ($this->f_moves) {
-                $literals = array();
-                // First, we'll have to join KNOWS and MOVES. Using Sahil's credentials because KNOWS doesn't fit otherwise, LMAO.
-                array_push($tables, "ORA_JUPITER.KNOWS");
-                array_push($tables, "MOVES");
-                // Also, we have to make sure the PKs match.
-                array_push($where_clauses, "POKEMON.ID=ORA_JUPITER.KNOWS.POKEMONID");
-                array_push($where_clauses, "MOVES.ID=ORA_JUPITER.KNOWS.MOVEID");
-                for ($i = 0; $i < count($this->f_moves); $i++) {
-                    $curr = $this->f_moves[$i];
-                    array_push($literals, "MOVENAME='" . ucfirst(strtolower($this->f_moves[$i])) . "'");
-                }
-                array_push($where_clauses, $this->concat_symbol($literals, "and"));  
-            }
-
-            if ($this->f_abilities) {
-                // TODO
-            }
+            $this->handle_name($where_clauses);
+            $this->handle_types($where_clauses);
+            $this->handle_stat($where_clauses);
+            $this->handle_moves($where_clauses);
+            $this->handle_abilities($where_clauses);
+            $this->handle_order_by($order_by_clause);
 
             $ret = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe FROM "
-            . $this->concat_symbol($tables, ",")
+            . concat_symbol($tables, ",")
             . " WHERE "
-            . $this->concat_symbol($where_clauses, "and");
+            . concat_symbol($where_clauses, "and")
+            . $order_by_clause;
+            
+            return $ret;
+        }
+    }
+
+    // Represents the filters applied on an item search by the user.
+    class ItemSearch {
+        // User inputted name; stored as a string.
+        public $f_name;
+
+        function __construct($f_name) {
+            $this->f_name = $f_name;
+        }
+
+        function handle_name(&$where_clauses) {
+            if ($this->f_name) {
+                array_push($where_clauses, "ITEMNAME LIKE '" . $this->f_name . "%'");
+            }
+        }
+
+        function get_query() {
+            // A list of tables used. 'ITEMS' is always used.
+            $tables = array("ITEMS");
+            // A list of the where clauses.
+            $where_clauses = array();
+
+            $this->handle_name($where_clauses);
+
+            $ret = "SELECT DISTINCT itemName FROM "
+            . concat_symbol($tables, ",")
+            . " WHERE "
+            . concat_symbol($where_clauses, "and")
+            . "ORDER BY itemName ASC";
             
             return $ret;
         }
