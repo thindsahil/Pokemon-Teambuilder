@@ -28,12 +28,13 @@
         */
 
         // MoveSearch tests:
-        $m_name_args = "F";
+        $m_name_args = "%";
         $m_type_args = NULL;
         $m_bp_args = NULL;
         $m_category_args = NULL;
         $m_accuracy_args = NULL;
-        $ms = new MoveSearch($m_name_args, $m_type_args, $m_bp_args, $m_category_args, $m_accuracy_args);
+        $m_pokemon_args = NULL;
+        $ms = new MoveSearch($m_name_args, $m_type_args, $m_bp_args, $m_category_args, $m_accuracy_args, $m_pokemon_args);
         echo $ms->get_query() . "<br>";
         execute_query($conn, $ms->get_query(), $ms->get_binds());
 
@@ -77,7 +78,6 @@
 
             if ($binds) {
                 foreach ($binds as $key => $val) {
-                    // Bind variable
                     if (!oci_bind_by_name($stid, $key, $binds[$key])) {
                         $error = oci_error($stid);
                         die("Error binding $key " . "value $binds[$key] " . $error['message']);

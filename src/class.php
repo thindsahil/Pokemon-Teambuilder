@@ -43,9 +43,9 @@
     }
 
     // Represents the filters applied on a Pokemon search by the user. Make sure when you create this object that you follow the requirements commented down below for each attribute. There's
-    // no correctness checking currently (todo?) so incorrect data will beget incorrect results.
+    // no correctness checking currently (todo?) so incorrect data will beget incorrect results. 
     class NameSearch {
-        // User inputted name; stored as a string.
+        // User inputted name; stored as a string. "%" is treated as always a match; i.e it will return every Pokemon.
         public $f_name;
         // User chosen types to filter by; stored as an array, (MAX TWO LONG), of strings. 
         public $f_types;
@@ -132,7 +132,7 @@
 
         function handle_order_by(&$order_by_clause) {
             if ($this->f_order_by) {
-                // No error handling here, if you give it something that isn't "pokemonName", it'll assume it's an FilterAttribute.
+                // No error handling here (yet), if you give it something that isn't "POKEMONNAME", it'll assume it's an FilterAttribute.
                 if ($this->f_order_by == "POKEMONNAME") {
                     $order_by_clause = "ORDER BY POKEMONNAME ASC";
                 } else {
@@ -183,7 +183,7 @@
         }
 
         function get_binds() {
-            if (!$this->get_query) {
+            if (!$this->query) {
                 $this->get_query;
             }
             return $this->binds;
@@ -191,7 +191,7 @@
 
         // This will obviously be null if you don't define an aggregate.
         function get_aggregate() {
-            if (!$this->get_query) {
+            if (!$this->query) {
                 $this->get_query;
             }
             return $this->aggregate;
@@ -205,13 +205,18 @@
         public $f_bp;
         public $f_category;
         public $f_accuracy;
+        public $f_pokemon;
 
         public $query;
         public $binds = array();
 
-        function __construct($f_name, $f_type, $f_bp, $f_category, $f_accuracy) {
+        function __construct($f_name, $f_type, $f_bp, $f_category, $f_accuracy, $f_pokemon) {
             $this->f_name = $f_name;
             $this->f_type = $f_type;
+            $this->f_bp = $f_bp;
+            $this->f_category = $f_category;
+            $this->f_accuracy = $f_accuracy;
+            $this->f_pokemon = $f_pokemon;
         }
 
         function handle_name(&$where_clauses) {
@@ -222,7 +227,13 @@
         }
 
         function handle_type(&$where_clauses) {
+            // TODO
+        }
 
+        function handle_pokemon(&$where_clauses) {
+            if ($this->f_pokemon) {
+                array_push($where_clauses, "id in (SELECT distinct moveID from POKEMON, ORA_JUPITER.KNOWS WHERE id=pokemonID and pokemonName='" . $this->f_pokemon . "')");
+            }
         }
 
         function get_query() {
@@ -235,26 +246,27 @@
             //$this->handle_bp($where_clauses);
             //$this->handle_category($where_clauses);
             //$this->handle_accuracy($where_clauses);
+            $this->handle_pokemon($where_clauses);
 
-            $ret = "SELECT DISTINCT moveName, moveType, basepower, category, accuracy FROM "
+            $this->query = "SELECT DISTINCT moveName, moveType, basepower, category, accuracy FROM "
             . concat_symbol($tables, ",")
             . " WHERE "
-            . concat_symbol($where_clauses, "and")
-            . $order_by_clause;
+            . concat_symbol($where_clauses, "and");
             
-            return $ret;
+            return $this->query;
         }
 
         function get_binds() {
-            if (!$this->get_query) {
+            if (!$this->query) {
                 $this->get_query;
             }
+            echo $this->binds[':nm'];
             return $this->binds;
         }
 
         // This will obviously be null if you don't define an aggregate.
         function get_aggregate() {
-            if (!$this->get_query) {
+            if (!$this->query) {
                 $this->get_query;
             }
             return $this->aggregate;
