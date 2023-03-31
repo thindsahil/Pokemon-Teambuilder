@@ -12,16 +12,30 @@
         $conn = NULL;
         connect();
 
-        // These arguments are in order.
-        $f_name_args = NULL;
-        $f_types_args = NULL;//array("Poison"); 
-        $f_stat_args = array(new FStat("HP", 65, ">="));
-        $f_moves_args = NULL;//array("Fire Blast", "Sludge Bomb");
-        $f_abilities_args;
-        $f_order_by = "POKEMONNAME";
-        $ns = new NameSearch($f_name_args, $f_types_args, $f_stat_args, $f_moves_args, $f_abilities_args, $f_order_by);
+        // All arguments are in order. 
+        // NameSearch tests:
+        /*
+        $n_name_args = NULL;
+        $n_types_args = array("Water"); 
+        $n_stat_args = array(new FilterAttribute("ATK", 60, ">="));
+        $n_moves_args = array("Water Gun");
+        $n_abilities_args;
+        $n_order_by = "POKEMONNAME";
+        $n_aggregate = new FilterAttribute("ATK", 55, ">");
+        $ns = new NameSearch($n_name_args, $n_types_args, $n_stat_args, $n_moves_args, $n_abilities_args, $n_order_by, $n_aggregate);
         echo $ns->get_query() . "<br>";
-        execute_query($conn, $ns->get_query());
+        execute_query($conn, $ns->get_query(), $ns->get_binds());
+        */
+
+        // MoveSearch tests:
+        $m_name_args = "F";
+        $m_type_args = NULL;
+        $m_bp_args = NULL;
+        $m_category_args = NULL;
+        $m_accuracy_args = NULL;
+        $ms = new MoveSearch($m_name_args, $m_type_args, $m_bp_args, $m_category_args, $m_accuracy_args);
+        echo $ms->get_query() . "<br>";
+        execute_query($conn, $ms->get_query(), $ms->get_binds());
 
         function debug($message) {
             echo "<script type='text/javascript'>alert('" . $message . "');</script>";
@@ -51,7 +65,7 @@
             }
         }
 
-        function execute_query($conn, $q) {
+        function execute_query($conn, $q, $binds) {
             global $conn;
 
             $stid = oci_parse($conn, $q);
@@ -61,6 +75,15 @@
                 // insert error handle here
             }
 
+            if ($binds) {
+                foreach ($binds as $key => $val) {
+                    // Bind variable
+                    if (!oci_bind_by_name($stid, $key, $binds[$key])) {
+                        $error = oci_error($stid);
+                        die("Error binding $key " . "value $binds[$key] " . $error['message']);
+                    }
+                }
+            }
             $r = oci_execute($stid);
             if (!$r) {
                 $e = oci_error($stid);

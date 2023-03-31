@@ -15,12 +15,12 @@
         return $ret;
     }
     
-    class FStat{
-        // Name of the stat to filter, must be one of "HP","ATK","DEF","SPA","SPDEF","SPE", case sensitive!
+    class FilterAttribute{
+        // Name of the thing to filter by. It must be one of "HP","ATK","DEF","SPA","SPDEF","SPE", case sensitive!
         public $name;
         // Threshold of the stat.
         public $number;
-        // Operator. Must be "<",">","<=",">=" or "=".
+        // Operator. Must be "<",">","<=",">=" or "=". 
         public $operator;
 
         function __construct($name, $number, $operator) {
@@ -40,18 +40,6 @@
         function get_operator() {
             return $this->operator;
         }
-
-        function set_name($name) {
-            $this->name = $name;
-        }
-
-        function set_number($number) {
-            $this->number = $number;
-        }
-
-        function set_operator($operator) {
-            $this->over_under = $over_under;
-        }
     }
 
     // Represents the filters applied on a Pokemon search by the user. Make sure when you create this object that you follow the requirements commented down below for each attribute. There's
@@ -61,27 +49,38 @@
         public $f_name;
         // User chosen types to filter by; stored as an array, (MAX TWO LONG), of strings. 
         public $f_types;
-        // User chosen stat(s) to filter by; stored as an array of FStats. 
+        // User chosen stat(s) to filter by; stored as an array of FilterAttributes. 
         public $f_stat;
         // User chosen move(s) to filter by; stored as an array of strings.
         public $f_moves;
         // User chosen abilitie(s) to filter by; stored as an array of strings.
         public $f_abilities;
-        // User chosen attribute to sort by. Either "POKEMONNAME" for alphabetical ordering, or a single FStat (with every field but the name ignored).
+        // User chosen attribute to sort by. Either "POKEMONNAME" for alphabetical ordering, or a single FilterAttribute (with every field but the name ignored).
         public $f_order_by;
+        // User chosen attribute to aggregate by. A single FilterAttribute. In either case, calling get_aggregate will simply return every type or stat group and it's count.
+        public $f_aggregate;
 
-        function __construct($f_name, $f_types, $f_stat, $f_moves, $f_abilities, $f_order_by) {
+        // The query represented by this NameSearch object.
+        public $query;
+        // The bound variable names represented by this NameSearch object. Pass this along with $query to execute_query.
+        public $binds = array();
+
+        function __construct($f_name, $f_types, $f_stat, $f_moves, $f_abilities, $f_order_by, $f_aggregate) {
             $this->f_name = ucfirst(strtolower($f_name));
             $this->f_types = $f_types;
             $this->f_stat = $f_stat;
             $this->f_moves = $f_moves;
             $this->f_abilities = $f_abilities;
             $this->f_order_by = $f_order_by;
+            $this->f_aggregate = $f_aggregate;
         }
 
+        // Note that because we let the user type in literally any string for the name, we must bind this variable. However, the other variables
+        // should be selected from a dropdown or a fill-in, meaning that the end user won't be able to do any weird SQL injection for those. 
         function handle_name(&$where_clauses) {
             if ($this->f_name) {
-                array_push($where_clauses, "POKEMONNAME LIKE '" . $this->f_name . "%'");
+                array_push($where_clauses, "POKEMONNAME LIKE CONCAT(:nm, '%')");
+                $this->binds += array(':nm' => $this->f_name);
             }
         }
 
@@ -121,7 +120,7 @@
                 $subquery = "NOT EXISTS ("
                 . "(SELECT ID FROM MOVES WHERE " . concat_symbol($literals, "or") . ")"
                 . " MINUS "
-                . "(SELECT moveID FROM KNOWS WHERE POKEMON.id=KNOWS.pokemonID)"
+                . "(SELECT moveID FROM ORA_JUPITER.KNOWS WHERE POKEMON.id=ORA_JUPITER.KNOWS.pokemonID)"
                 . ")";
                 array_push($where_clauses, $subquery);
             }
@@ -133,7 +132,7 @@
 
         function handle_order_by(&$order_by_clause) {
             if ($this->f_order_by) {
-                // No error handling here, if you give it something that isn't "pokemonName", it'll assume it's an FStat.
+                // No error handling here, if you give it something that isn't "pokemonName", it'll assume it's an FilterAttribute.
                 if ($this->f_order_by == "POKEMONNAME") {
                     $order_by_clause = "ORDER BY POKEMONNAME ASC";
                 } else {
@@ -142,25 +141,102 @@
             }
         }
 
-        // Returns the bounded SQL query represented by this NameFilter as well as the bounded parameters.
+        // Returns the SQL query represented by this NameFilter. 
         function get_query() {
+            if ($this->get_query) {
+                return $this->get_query;
+            }
+
             // A list of tables used. 'POKEMON' is always used.
             $tables = array("POKEMON");
             // A list of the where clauses.
             $where_clauses = array();
             // The order by clause.
             $order_by_clause;
-            // A list of all the binds.
-            $binds;
 
             $this->handle_name($where_clauses);
             $this->handle_types($where_clauses);
             $this->handle_stat($where_clauses);
             $this->handle_moves($where_clauses);
-            $this->handle_abilities($where_clauses);
+            //$this->handle_abilities($where_clauses);
             $this->handle_order_by($order_by_clause);
 
-            $ret = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe FROM "
+            $main_select = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe";
+            $aggregate_select = "SELECT " . $this->f_aggregate->get_name() . ", COUNT(*)";
+
+            $this->query = $main_select . " FROM "
+            . concat_symbol($tables, ",")
+            . " WHERE "
+            . concat_symbol($where_clauses, "and")
+            . $order_by_clause;
+
+            // This will only run if an f_aggregate is actually defined.
+            if ($this->f_aggregate) {
+                $this->aggregate =  $aggregate_select . " FROM "
+                . concat_symbol($tables, ",")
+                . " WHERE "
+                . concat_symbol($where_clauses, "and")
+                . " GROUP BY " . $this->f_aggregate->get_name();
+            }
+            
+            return $this->query;
+        }
+
+        function get_binds() {
+            if (!$this->get_query) {
+                $this->get_query;
+            }
+            return $this->binds;
+        }
+
+        // This will obviously be null if you don't define an aggregate.
+        function get_aggregate() {
+            if (!$this->get_query) {
+                $this->get_query;
+            }
+            return $this->aggregate;
+        }
+    }
+
+    // Represents the filters applied on a move search by the user. Again, name must be bounded.
+    class MoveSearch {
+        public $f_name;
+        public $f_type;
+        public $f_bp;
+        public $f_category;
+        public $f_accuracy;
+
+        public $query;
+        public $binds = array();
+
+        function __construct($f_name, $f_type, $f_bp, $f_category, $f_accuracy) {
+            $this->f_name = $f_name;
+            $this->f_type = $f_type;
+        }
+
+        function handle_name(&$where_clauses) {
+            if ($this->f_name) {
+                array_push($where_clauses, "MOVENAME LIKE CONCAT(:nm, '%')");
+                $this->binds += array(':nm' => $this->f_name);
+            }
+        }
+
+        function handle_type(&$where_clauses) {
+
+        }
+
+        function get_query() {
+            $tables = array("MOVES");
+            $where_clauses = array();
+            $order_by_clause;
+
+            $this->handle_name($where_clauses);
+            $this->handle_type($where_clauses);
+            //$this->handle_bp($where_clauses);
+            //$this->handle_category($where_clauses);
+            //$this->handle_accuracy($where_clauses);
+
+            $ret = "SELECT DISTINCT moveName, moveType, basepower, category, accuracy FROM "
             . concat_symbol($tables, ",")
             . " WHERE "
             . concat_symbol($where_clauses, "and")
@@ -168,11 +244,25 @@
             
             return $ret;
         }
+
+        function get_binds() {
+            if (!$this->get_query) {
+                $this->get_query;
+            }
+            return $this->binds;
+        }
+
+        // This will obviously be null if you don't define an aggregate.
+        function get_aggregate() {
+            if (!$this->get_query) {
+                $this->get_query;
+            }
+            return $this->aggregate;
+        }
     }
 
-    // Represents the filters applied on an item search by the user.
+    // Represents the filters applied on an item search by the user. Again, name must be bounded.
     class ItemSearch {
-        // User inputted name; stored as a string.
         public $f_name;
 
         function __construct($f_name) {
@@ -186,9 +276,7 @@
         }
 
         function get_query() {
-            // A list of tables used. 'ITEMS' is always used.
             $tables = array("ITEMS");
-            // A list of the where clauses.
             $where_clauses = array();
 
             $this->handle_name($where_clauses);
