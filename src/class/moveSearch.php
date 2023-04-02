@@ -22,7 +22,6 @@
             $this->f_pokemon = $f_pokemon;
             $this->f_order_by = $f_order_by;
             $this->f_aggregate = $f_aggregate; 
-            echo "here";
         }
 
         function handle_name(&$where_clauses) {
