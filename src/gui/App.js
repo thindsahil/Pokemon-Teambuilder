@@ -114,13 +114,13 @@ const nameSearchParams = {
   // A string.
   "name": null,
   // Must be at an array! Max size two.
-  "types": ["Poison", "Grass"],
+  "types": ["Water", "Steel"],
   // Can have as many attributes here as you want as long as their names are attributes of the POKEMON table.
-  "stat": [{"name": "ATK", "number": 60, "operator": ">"}, {"name": "DEF", "number": 60, "operator": ">"}],
+  "stat": [{"name": "ATK", "number": 80, "operator": ">"}, {"name": "DEF", "number": 150, "operator": "<"}],
   // An array. Can be as big as you want.
-  "moves": ["Sludge Bomb", "Petal Dance"],
-  // Not implemented yet.
-  "abilities": null,
+  "moves": ["Dig"],
+  // Must be an array of ability names.
+  "abilities": ["Defiant"],
   // Must an attribute of the POKEMON table.
   "order_by": "POKEMONNAME",
   // If this isn't null, the search will return an aggregate on that attribute instead of the real search. Only here to meet one of the requirements :P
@@ -153,7 +153,8 @@ const moveSearchParams = {
 function App() {
   return (
     <div>
-      <Requests args={makeAccountParams}/>
+      <Login />
+      <Requests args={nameSearchParams}/>
     </div>
   );
 }

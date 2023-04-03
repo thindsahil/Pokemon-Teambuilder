@@ -68,6 +68,16 @@ export default class Requests extends React.Component {
             );
         }
 
+        if (this.state.result.api === "makeAccount") {
+            return (
+                <div>
+                    <pre>
+                        {JSON.stringify(this.state.result, null, 2)}
+                    </pre>
+                </div>
+            );
+        }
+
         // etc...
 
         // Default case. Shouldn't exist in the end since every API call will be handled.

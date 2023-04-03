@@ -84,7 +84,20 @@
         }
 
         function handle_abilities(&$where_clauses) {
-            // TODO
+            if ($this->f_abilities) {
+                $literals = array();
+
+                for ($i = 0; $i < count($this->f_abilities); $i++) {
+                    array_push($literals, "ANAME='" . $this->f_abilities[$i] . "'");
+                }
+                
+                $subquery = "NOT EXISTS ("
+                . "(SELECT id FROM ABILITIES WHERE " . concat_symbol($literals, "or") . ")"
+                . " MINUS "
+                . "(SELECT abilityID FROM HAS WHERE POKEMON.id=HAS.pokemonID)"
+                . ")";
+                array_push($where_clauses, $subquery);
+            }
         }
 
         function handle_order_by(&$order_by_clause) {
@@ -116,7 +129,7 @@
             $this->handle_types($where_clauses);
             $this->handle_stat($where_clauses);
             $this->handle_moves($where_clauses);
-            //$this->handle_abilities($where_clauses);
+            $this->handle_abilities($where_clauses);
             $this->handle_order_by($order_by_clause);
 
             $main_select = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe";
