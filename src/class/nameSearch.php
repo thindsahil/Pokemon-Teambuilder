@@ -120,7 +120,6 @@
             $this->handle_order_by($order_by_clause);
 
             $main_select = "SELECT DISTINCT pokemonName, primaryType, secondaryType, hp, atk, def, spa, spdef, spe";
-            $aggregate_select = "SELECT " . $this->f_aggregate->get_name() . ", COUNT(*)";
 
             $this->query = $main_select . " FROM "
             . concat_symbol($tables, ",")
@@ -130,6 +129,7 @@
 
             // This will only run if an f_aggregate is actually defined.
             if ($this->f_aggregate) {
+                $aggregate_select = "SELECT " . $this->f_aggregate->get_name() . ", COUNT(*)";
                 $this->aggregate =  $aggregate_select . " FROM "
                 . concat_symbol($tables, ",")
                 . " WHERE "

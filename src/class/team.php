@@ -18,7 +18,7 @@
         }
 
         function delete() {
-            return "DELETE FROM TEAM WHERE teamID = :tid";
+            return "DELETE FROM TEAM WHERE teamID = :tid and username = :nm";
         }
 
         // CAN ALSO BE USED TO UPDATE POKEMON 
@@ -70,7 +70,7 @@
         function __construct() {
         }
 
-        function create() {
+        function create() { 
             $query = "INSERT INTO POKEMONSLOT VALUES (:ssid, NULL, NULL, NULL, NULL, NULL, NULL, NULL)";
             return $query;
         }
@@ -97,11 +97,12 @@
 
         function get_pokemon_name() {
             return "SELECT pokemonName as Pokemon FROM POKEMON, PokemonSlot WHERE slotId = :ssid 
-                    AND id = :pid";
+                    AND id = PokemonSlot.pid";
         }
+        
         function get_ability_name() {
             return "SELECT aName as Ability FROM Abilities, PokemonSlot WHERE slotId = :ssid 
-                    AND Abilities.id = :aid";
+                    AND Abilities.id = PokemonSlot.aid";
         }
         
         function get_item_name() {
@@ -110,9 +111,8 @@
 
         function get_move_name($moveSlot) {
             return "SELECT moveName as Move{$moveSlot} FROM PokemonSlot, Moves WHERE slotId = :ssid 
-                    AND Moves.id = :move{$moveSlot}";
+                    AND Moves.id = PokemonSlot.move{$moveSlot}";
         }
-
 
         function delete() {
             return "DELETE FROM POKEMONSLOT WHERE slotId = :ssid";
