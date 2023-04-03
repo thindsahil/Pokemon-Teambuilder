@@ -1,8 +1,8 @@
 drop table Items;
 
 CREATE TABLE Items(
-     itemName char(20),
-     itemType char(16),
+     itemName varchar2(20),
+     itemType varchar2(16),
      primary key (itemName, itemType)
 );
 
