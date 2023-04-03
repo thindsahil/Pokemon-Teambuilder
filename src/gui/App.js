@@ -1,6 +1,10 @@
 import Login from './components/Login';
 import Requests from './components/Requests';
 
+// Here is a comprehensive list of every API call to the PHP backend. For example, calling
+// <Requests args={makeAccountParams}/> will create a new Account row in the SQL database with the username USER.
+// The format of data received from calls that retrieve data are explained in the Requests.js constructor.
+// Annotations have been made for any non-obvious parameter restrictions.
 const makeAccountParams = {
   "api": "makeAccount",
   "username": "USER"
@@ -19,15 +23,17 @@ const getAccountTeamsParams = {
 const makeTeamParams = {
   "api": "makeTeam",
   "username": "USER",
-  // User supplied teamid for now. Must be unique.
+  // User supplied teamid for now. Must be unique. Think of this as a name of a team the user supplies,
+  // as a number.
   "tid": 0
 }
 
 const updatePokemonOnTeamParams = {
   "api": "updatePokemonOnTeam",
   "username": "USER",
+  // Updates the slot of the team with this tid.
   "tid": 0,
-  // 1-6
+  // Must be 1-6.
   "slot": 1,
   "ssid": 0
 }
@@ -36,7 +42,7 @@ const deletePokemonOnTeamParams = {
   "api": "deletePokemonOnTeam",
   "username": "USER",
   "tid": 0,
-  // 1-6
+  // Must be 1-6.
   "slot": 1
 }
 
@@ -51,16 +57,17 @@ const deleteTeamParams = {
   "tid": 0
 }
 
-// Make a new PokemonSlot. Must be used before you start editing that PokemonSlot. This effectively maps up to whenever the user adds a new empty Pokemon to a team.
+// Make a new PokemonSlot. Must be used before you start editing that PokemonSlot.
 const makePokemonParams = {
   "api": "makePokemon",
+  // User supplied for now, must be unique.
   "ssid": 0
 }
 
 const updatePokemonSpeciesParams = {
   "api": "updatePokemonSpecies",
   "ssid": 0,
-  "pid": 456
+  "pid": 388
 }
 
 const updatePokemonItemParams = {
@@ -72,8 +79,9 @@ const updatePokemonItemParams = {
 const updatePokemonMoveParams = {
   "api": "updatePokemonMove",
   "ssid": 0,
-  // 1-4
+  // Must be 1-4.
   "slot": 3,
+  // MoveID
   "mid": 26
 }
 
@@ -90,20 +98,19 @@ const getPokemonItemParams = {
 const getPokemonMoveParams = {
   "api": "getPokemonMove",
   "ssid": 0,
-  // Must be 1-4
+  // Must be 1-4.
   "slot": 3
 }
 
 const deletePokemonParams = {
   "api": "deletePokemon",
-  // User supplied slotid for now. Must be unique.
   "ssid": 0,
 }
 
 // Searches the database for Pokemon that meet all the below conditions.
 const nameSearchParams = {
-  // All of these can be null, BUT if everything else is null, "name" must not be null.
   "api": "doNameSearch",
+  // All of these can be null, BUT if everything else is null, "name" must not be null.
   // A string.
   "name": null,
   // Must be at an array! Max size two.
@@ -118,13 +125,14 @@ const nameSearchParams = {
   "order_by": "POKEMONNAME",
   // If this isn't null, the search will return an aggregate on that attribute instead of the real search. Only here to meet one of the requirements :P
   // If it isn't null, it must be a single attribute object. For example: {"name": "PRIMARYTYPE", "number": 60, "operator": ">"}. Only the name is relevant, the other elements are ignored.
+  // The thing in the "name" field MUST be an attribute of POKEMON. Check the schema.
   "aggregate": null
 };
 
 // Searches the database for Moves that meet the below conditions.
 const moveSearchParams = {
   "api": "doMoveSearch",
-  // A string. Must not be null if everything else is null.
+  // A string. Like NameSearch, must NOT be null if everything else is null.
   "name": null,
   // A string.
   "type": "Fire",
@@ -145,7 +153,7 @@ const moveSearchParams = {
 function App() {
   return (
     <div>
-      <Requests args={nameSearchParams}/>
+      <Requests args={makeAccountParams}/>
     </div>
   );
 }

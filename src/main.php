@@ -84,16 +84,16 @@
         echo "<script type='text/javascript'>alert('" . $message . "');</script>";
     }   
 
-    function tojson($stid) {
+    function tojson($stid, $api) {
         $rows = array();
         while($r = oci_fetch_assoc($stid)) {
             $rows[] = $r;
         }
         if (count($rows) == 0) {
-            $ret = json_encode(array("success" => true, "message" => "Update successful."));
+            $ret = json_encode(array("success" => true, "api" => $api, "data" => "Update successful."));
             echo $ret;
         } else {
-            $ret =(json_encode($rows));
+            $ret =(json_encode(array("success" => true, "api" => $api, "data" => $rows)));
             echo $ret;
         }
     }
@@ -106,25 +106,25 @@
             //debug("Connected.");
             return true;
         } else {
-            debug("Cannot connect to database");
+            echo json_encode(array("success" => false, "api" => null, "data" => "Couldn't connect to database."));
             return false;
         }
     }
 
-    function execute_query($conn, $q, $binds) {
+    function execute_query($conn, $q, $binds, $api) {
         global $conn;
 
         $stid = oci_parse($conn, $q);
         if (!$stid) {
             $e = oci_error($conn);
-            // handle error here
+            echo json_encode(array("success" => false, "api" => $api, "data" => $e['message']));
         }
 
         if ($binds) {
             foreach ($binds as $key => $val) {
                 if (!oci_bind_by_name($stid, $key, $binds[$key])) {
                     $error = oci_error($stid);
-                    die("Error binding $key " . "value $binds[$key] " . $error['message']);
+                    echo json_encode(array("success" => false, "api" => $api, "data" => $e['message']));
                 }
             }
         }
@@ -132,11 +132,11 @@
         $r = oci_execute($stid);
         if (!$r) {
             $e = oci_error($stid);
-            echo json_encode(array("success" => false, "message" => $e['message']));
+            echo json_encode(array("success" => false, "api" => $api, "data" => $e['message']));
             exit();
         }
         
-        tojson($stid);
+        tojson($stid, $api);
         oci_free_statement($stid);
     }
 
@@ -148,82 +148,82 @@
         switch($params->api) {
             case "makeAccount":
                 $account = new Account($params->username);
-                execute_query($conn, $account->get_insert(), $account->get_binds());
+                execute_query($conn, $account->get_insert(), $account->get_binds(), $params->api);
                 break;
 
             case "deleteAccount":
                 $account = new Account($params->username);
-                execute_query($conn, $account->delete_account(), $account->get_binds());
+                execute_query($conn, $account->delete_account(), $account->get_binds(), $params->api);
                 break;
 
             case "makeTeam":
                 $team = new Team();
-                execute_query($conn, $team->create(), array(':nm' => $params->username, ':tid' => $params->tid));
+                execute_query($conn, $team->create(), array(':nm' => $params->username, ':tid' => $params->tid), $params->api);
                 break;
 
             case "updatePokemonOnTeam":
                 $team = new Team();
-                execute_query($conn, $team->insert_pokemon($params->slot), array(':nm' => $params->username, ':tid' => $params->tid, ':pkmn' . $params->slot => $params->ssid));
+                execute_query($conn, $team->insert_pokemon($params->slot), array(':nm' => $params->username, ':tid' => $params->tid, ':pkmn' . $params->slot => $params->ssid), $params->api);
                 break;
 
             case "deletePokemonOnTeam":
                 $team = new Team();
-                execute_query($conn, $team->insert_pokemon($params->slot), array(':nm' => $params->username, ':tid' => $params->tid, ':pkmn' . $params->slot => NULL));
+                execute_query($conn, $team->insert_pokemon($params->slot), array(':nm' => $params->username, ':tid' => $params->tid, ':pkmn' . $params->slot => NULL), $params->api);
                 break;
 
             case "getTeams":
                 $team = new Team();
-                execute_query($conn, $team->get_all_teams(), array(':nm' => $params->username));
+                execute_query($conn, $team->get_all_teams(), array(':nm' => $params->username), $params->api);
                 break;
 
             case "deleteTeam":
                 $team = new Team();
-                execute_query($conn, $team->delete(), array(':nm' => $params->username, ':tid' => $params->tid));
+                execute_query($conn, $team->delete(), array(':nm' => $params->username, ':tid' => $params->tid), $params->api);
                 break;
 
             case "makePokemon":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->create(), array(':ssid' => $params->ssid));
+                execute_query($conn, $ps->create(), array(':ssid' => $params->ssid), $params->api);
                 break;
 
             case "updatePokemonSpecies":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->update_pokemon(), array(':ssid' => $params->ssid, ':pid' => $params->pid));
+                execute_query($conn, $ps->update_pokemon(), array(':ssid' => $params->ssid, ':pid' => $params->pid), $params->api);
                 break;
 
             case "updatePokemonAbility":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->update_ability(), array(':ssid' => $params->ssid, ':aid' => $params->aid));
+                execute_query($conn, $ps->update_ability(), array(':ssid' => $params->ssid, ':aid' => $params->aid), $params->api);
                 break;
 
             case "updatePokemonItem":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->update_item(), array(':ssid' => $params->ssid, ':item' => $params->itemname));
+                execute_query($conn, $ps->update_item(), array(':ssid' => $params->ssid, ':item' => $params->itemname), $params->api);
                 break;
 
             case "updatePokemonMove":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->update_move($params->slot), array(':ssid' => $params->ssid, ':move' . $params->slot => $params->mid));
+                execute_query($conn, $ps->update_move($params->slot), array(':ssid' => $params->ssid, ':move' . $params->slot => $params->mid), $params->api);
                 break;  
                 
             case "getPokemonName":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->get_pokemon_name(), array(':ssid' => $params->ssid));
+                execute_query($conn, $ps->get_pokemon_name(), array(':ssid' => $params->ssid), $params->api);
                 break; 
 
             case "getPokemonItem":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->get_item_name(), array(':ssid' => $params->ssid));
+                execute_query($conn, $ps->get_item_name(), array(':ssid' => $params->ssid), $params->api);
                 break;
 
             case "getPokemonMove":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->get_move_name($params->slot), array(':ssid' => $params->ssid));
+                execute_query($conn, $ps->get_move_name($params->slot), array(':ssid' => $params->ssid), $params->api);
                 break;
 
             case "deletePokemon":
                 $ps = new PokemonSlot();
-                execute_query($conn, $ps->delete(), array(':ssid' => $params->ssid));
+                execute_query($conn, $ps->delete(), array(':ssid' => $params->ssid), $params->api);
                 break;
 
             case "doNameSearch":
@@ -243,13 +243,13 @@
                 $ns = new NameSearch($params->name, $params->types, $f_stat, $params->moves, $params->abilities, $params->order_by, $f_aggregate);
 
                 if ($params->aggregate) {
-                    execute_query($conn, $ns->get_aggregate(), null);
+                    execute_query($conn, $ns->get_aggregate(), null, $params->api);
                 }
 
                 if ($params->name) {
-                    execute_query($conn, $ns->get_query(), $ns->get_binds());
+                    execute_query($conn, $ns->get_query(), $ns->get_binds(), $params->api);
                 } else {
-                    execute_query($conn, $ns->get_query(), null);
+                    execute_query($conn, $ns->get_query(), null, $params->api);
                 }
                 break;
 
@@ -257,13 +257,13 @@
                 $ms = new MoveSearch($params->name, $params->type, $params->bp, $params->category, $params->accuracy, $params->pokemon, $params->order_by, $params->aggregate);
 
                 if ($params->aggregate) {
-                    execute_query($conn, $ns->get_aggregate(), null);
+                    execute_query($conn, $ns->get_aggregate(), null, $params->api);
                 }
 
                 if ($params->name) {
-                    execute_query($conn, $ms->get_query(), $ms->get_binds());
+                    execute_query($conn, $ms->get_query(), $ms->get_binds(), $params->api);
                 } else {
-                    execute_query($conn, $ms->get_query(), null);
+                    execute_query($conn, $ms->get_query(), null, $params->api);
                 }
                 break;
         }
