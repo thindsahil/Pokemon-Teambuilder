@@ -100,7 +100,7 @@
 
     function connect() {
         global $conn;
-        $conn = oci_connect("ora_dsopheap", "a24296634", "dbhost.students.cs.ubc.ca:1522/stu");
+        $conn = oci_connect(#CREDENTIALS#);
 
         if ($conn) {
             //debug("Connected.");
